@@ -228,10 +228,14 @@ def delete_order(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     if request.method == 'GET':
         # 删除订单时，同时删除对应的图片文件（如果存在的话）
-        if order.image:
-            image_path = os.path.join(settings.MEDIA_ROOT, str(order.image))
-            if os.path.exists(image_path):
-                os.remove(image_path)
+        get_image_paths = order.get_image_paths()
+        print('aasdf',get_image_paths)
+        if get_image_paths:
+            for image_path in get_image_paths:
+                del_image_path = os.path.join(settings.BASE_DIR, str(image_path))
+                print('asfsf',del_image_path)
+                if os.path.exists(del_image_path):
+                    os.remove(del_image_path)
         order.delete()
         messages.success(request, '订单已删除')
         return redirect('order_list')

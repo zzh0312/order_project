@@ -179,7 +179,7 @@
         <!-- 图片上传及预览部分，修改为支持多选文件，并调整相关样式类 -->
         <div class="mb-3 file-input">
             <label for="order_images" class="form-label">订单图片：</label>
-            <input type="file" id="order_images" name="image" accept="image/*" multiple onchange="preUploadImages(event)">
+            <input type="file" id="order_images" name="image" accept="image/*" multiple onchange="preUploadImages(event)" required>
         </div>
         <div class="image-preview-container"></div>
         <!-- 新增用于传递临时图片标识列表的隐藏域 -->
