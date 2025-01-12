@@ -25,4 +25,4 @@ urlpatterns = [
     path('orders/update/<int:order_id>/', update_order, name='update_order'),  # 注意这里<int:order_id>定义了参数接收方式
     path('orders/delete/<int:order_id>/', delete_order, name='delete_order'),
     path('pre_upload_image/', pre_upload_image, name='pre_upload_image'),  # 添加图片预上传的路由
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
