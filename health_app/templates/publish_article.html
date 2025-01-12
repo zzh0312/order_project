@@ -1,0 +1,3 @@
+{% if perms.yourappname.can_publish_article %}
+    <a href="{% url 'publish_article' %}">发布文章</a>
+{% endif %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<style>
+  .custom-form-container {
+        padding: 15px;
+        max-width: 1250px;
+        margin: 0 auto;
+        min-height: 400px;
+        border: 2px solid #d5e0ec;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        background-color: #f9f9f9;
+    }
+
+ .form-control {
+        height: 40px;
+        line-height: 40px;
+        padding: 0 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        width: 100%;
+    }
+
+ .form-control#content {
+        height: 200px;
+        line-height: normal;
+    }
+
+ .btn {
+        height: 40px;
+        line-height: 40px;
+        padding: 0 20px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007BFF;
+        color: white;
+        cursor: pointer;
+    }
+
+ .article-list-header {
+        background-color: #f3f5f8;
+        color: rgb(22, 19, 19);
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+ .article-list-header h5 {
+        margin: 0;
+    }
+
+ .nav-list {
+        display: flex;
+        justify-content: space-around;
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        margin-bottom: 20px;
+    }
+
+ .nav-list li {
+        padding: 10px 15px;
+        border-radius: 5px;
+        background-color: #e0e0e0;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+ .nav-list li:hover {
+        background-color: #ccc;
+    }
+
+ .big-image {
+        /* 使用背景图片替换原来的img标签 */
+        background-image: url('{% static "images/IMG_4465.png" %}');
+        background-size: 800px 800px;
+        background-repeat: no-repeat;
+        background-position: center;
+        height: 800px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+</style>
+
+<div class="container custom-form-container">
+    <div class="article-list-header">
+        <h1>医疗健康科普</h1>
+    </div>
+    <ul class="nav-list">
+        <li><a href="{% url 'article_list' %}">科普文章</a></li>
+        <li>专家咨询</li>
+        <li>健康食谱</li>
+        <li>相关视频</li>
+    </ul>
+    <div class="big-image"></div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+body {
+    font-family: Arial, sans - serif;
+    padding: 20px;
+}
+.add-article-button {
+    background-color: #007BFF;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+}
+    
+    .article-list-container {
+    margin-top: 20px;
+    }
+    
+    .article-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    }
+    
+    .article-list-table th,
+    .article-list-table td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+    }
+    
+    .article-list-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+    }
+    
+    .article-list-table tr:hover {
+    background-color: #e9e9e9;
+    }

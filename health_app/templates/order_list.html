@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* 页面容器样式，设置内边距、最大宽度、水平居中、最小高度、边框及阴影等 */
+ .container {
+        padding: 15px;
+        max-width: 1350px;
+        margin: 0 auto;
+        min-height: 1050px;
+        border: 2px solid #d5e0ec;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden; /* 隐藏容器自身水平方向溢出内容，避免出现多余滚动条 */
+    }
+
+    /* 表单输入框通用样式 */
+ .form-control {
+        height: 40px;
+        line-height: 40px;
+        padding: 0 10px;
+    }
+
+    /* 按钮通用样式 */
+ .btn {
+        height: 40px;
+        line-height: 40px;
+        padding: 0 20px;
+    }
+
+    /* 用户信息块样式 */
+ .user-info-block {
+        background-color: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    /* 订单列表头部样式 */
+ .order-list-header {
+        background-color: #f3f5f8;
+        color: rgb(22, 19, 19);
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* 订单列表头部标题样式 */
+ .order-list-header h5 {
+        margin: 0;
+    }
+
+    /* 订单列表头部按钮样式 */
+ .order-list-header.btn {
+        background-color: white;
+        color: #c9dbee;
+        font-weight: bold;
+        transition: background-color 0.3s ease;
+    }
+
+    /* 订单列表头部按钮鼠标悬停样式 */
+ .order-list-header.btn:hover {
+        background-color: #e0e0e0;
+    }
+
+    /* 隐藏列样式，用于根据权限控制某些列的显示 */
+ .hidden-column {
+        display: none;
+    }
+
+    /* 登录提示文本样式 */
+ .login-prompt {
+        text-align: center;
+        color: #666;
+        font-size: 16px;
+    }
+
+    /* 登录提示链接样式 */
+ .login-prompt a {
+        color: #007BFF;
+        text-decoration: none;
+        margin-left: 5px;
+    }
+
+    /* 登录提示链接鼠标悬停样式 */
+ .login-prompt a:hover {
+        text-decoration: underline;
+    }
+
+    /* 订单表格样式，重点优化横向滚动相关以及表格整体显示效果 */
+ .order-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        overflow-x: auto;
+        /* 以下是新增的滚动条样式相关代码，用于自定义滚动条外观，使其更美观且与页面风格协调 */
+        scrollbar-width: thin; /* 对于支持该属性的浏览器（如 Firefox），设置滚动条宽度较细 */
+        scrollbar-color: #ccc #f0f0f0; /* 定义滚动条颜色，前者为滑块颜色，后者为轨道颜色 */
+        -webkit-overflow-scrolling: touch; /* 在 iOS 设备上启用流畅滚动效果 */
+    }
+
+    /* 针对 WebKit 内核浏览器（如 Chrome、Safari 等）自定义滚动条样式 */
+ .order-table::-webkit-scrollbar {
+        width: 8px; /* 设置滚动条宽度 */
+    }
+
+ .order-table::-webkit-scrollbar-track {
+        background: #f0f0f0; /* 滚动条轨道的背景色 */
+    }
+
+ .order-table::-webkit-scrollbar-thumb {
+        background-color: #ccc; /* 滚动条滑块的颜色 */
+        border-radius: 4px; /* 滑块的圆角效果 */
+    }
+
+ .order-table::-webkit-scrollbar-thumb:hover {
+        background-color: #aaa; /* 鼠标悬停在滑块上时的颜色变化 */
+    }
+
+ .order-table th,
+ .order-table td {
+        border: 1px solid #e0e0e0;
+        padding: 8px;
+        /*white-space: nowrap; /* 防止单元格内文本自动换行，保证表格列宽稳定，便于横向滚动查看完整内容 */
+        word-wrap: break-word; /* 允许长单词或 URL 等强制换行 */
+        word-break: break-all; /* 强制换行，哪怕是单词中间也可以断开 */
+    }
+
+ .order-table th {
+        background-color: #f8f9fa;
+        text-align: left;
+    }
+
+ .order-table tr:hover {
+        background-color: #e9ecef;
+    }
+
+    /* 订单图片样式，用于在表格中展示订单图片 */
+ .order-image {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+    }
+</style>
+
+{% url 'create_order' as create_order_url %}
+
+<div class="container">
+    <div class="row">
+        <div class="">
+            <div class="user-info-block">
+                {% if user.is_authenticated %}
+                    <h4 class="mb-3" style="display: inline;">欢迎回来，
+                        {% if user.is_superuser == 1 %}
+                        <p style="display: inline;">管理员</p>
+                    {% endif %}
+                    {% if user.is_superuser == 0 %}
+                        <p style="display: inline;">用户</p>
+                    {% endif %}
+                    {{ user.username }}</h4>
+                    <p style="display: inline;">你的邮箱是：{{ user.email }}</p>
+                    {% if user.groups.all.0.name == '订单管理组' %}
+                        <p style="display: inline;">你是订单管理组成员</p>
+                    {% endif %}
+                    <a href="{% url 'logout' %}" class="btn btn-secondary mb-3" style="display: inline;">退出</a>
+                {% else %}
+                    <div class="login-prompt">
+                        你还未登录，<a href="{% url 'login' %}">点击登录</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-6 text-end">
+
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <div class="order-list-header">
+            <h5>订单列表</h5>
+            <a href="{{ create_order_url }}" class="btn btn-primary mb-3">添加订单</a>
+        </div>
+        <form method="get">
+            <div class="input-group" style="width: 400px; padding: 20px 0;">
+                <input type="text" name="q" class="form-control" placeholder="搜索相关订单信息">
+                <button type=" submit" class="btn btn-primary">搜索</button>
+            </div>
+        </form>
+    </div>
+    {% if request.user.is_superuser %}
+    <!-- 对表格部分添加一个包裹的div，用于更好地控制表格的显示和滚动效果 -->
+    <div class="table-scroll-wrapper">
+        <table class="order-table">
+            <thead>
+                <tr>
+                    <th scope="col">打手</th>
+                    <th scope="col">日期</th>
+                    <th scope="col">单号</th>
+                    <th scope="col">老板</th>
+                    <th scope="col">单价</th>
+                    <th scope="col">图片</th>
+                    <th scope="col">原价</th>
+                    <th scope="col">是否收货</th>
+                    <th scope="col">是否结单</th>
+                    <th scope="col">利润</th>
+                    <th scope="col">手动状态</th>
+                    <th scope="col">审核状态</th>
+                    <th scope="col">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in page_obj %}
+                    <tr>
+                        <td>{{ order.thug }}</td>
+                        <td>{{ order.date|date:"Y-m-d" }}</td>
+                        <td>{{ order.single_number }}</td>
+                        <td>{{ order.boss }}</td>
+                        <td>{{ order.unit_price }}</td>
+                        <td>
+                            {% if order.image %}
+                                <img src="{{ order.image.url }}" alt="订单图片" class="order-image">
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ order.original_price }}</td>
+                        <td>{{ order.is_received }}</td>
+                        <td>{{ order.is_closed }}</td>
+                        <td>{{ order.profit }}</td>
+                        <td>{{ order.manual_status }}</td>
+                        <td>{{ order.audit_status }}</td>
+                        <td>
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'update_order' order_id=order.id %}" class="btn btn-warning btn-sm">修改</a>
+                                <a href="{% url 'delete_order' order_id=order.id %}" class="btn btn-danger btn-sm" onclick="return confirmAndRedirect(this);">删除</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="pagination justify-content-center">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="btn btn-primary btn-sm me-1">&laquo; 第一页</a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-primary btn-sm me-1">上一页</a>
+            {% endif %}
+            <span class="current-page mx-2">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn btn-primary btn-sm me-1">下一页</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-primary btn-sm">最后一页 &raquo;</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+</div>
+<script>
+    function confirmAndRedirect(link) {
+        var result = confirm("你确定要执行此操作吗？此操作不可撤销，请谨慎操作。");
+        if (result) {
+            window.location.href = link.href;
+            return true;
+        }
+        return false;
+    }
+</script>
+{% endblock %}

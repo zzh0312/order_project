@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* 整体表单容器样式，复用了参考样式中的一些属性，同时做了适当调整 */
+ .custom-form-container {
+        padding: 15px;
+        max-width: 800px;
+        margin: 0 auto;
+        min-height: 400px;
+        border: 2px solid #d5e0ec;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 表单输入框通用样式，统一高度、行高、内边距等 */
+ .form-control {
+        height: 40px;
+        line-height: 40px;
+        padding: 0 10px;
+        border: 1px solid #ccc; /* 添加边框样式，使其更清晰 */
+        border-radius: 5px; /* 统一圆角效果 */
+    }
+
+    /* 针对文本域类型输入框的样式，调整高度和行高 */
+    textarea.form-control {
+        height: 120px; /* 根据订单相关内容预估合适高度，可调整 */
+        line-height: normal;
+    }
+
+    /* 按钮通用样式，设置高度、内边距、背景色、文字颜色等 */
+ .btn {
+        height: 40px;
+        line-height: 40px;
+        padding: 0 20px;
+        border: none; /* 去除默认边框 */
+        border-radius: 5px;
+        background-color: #007BFF; /* 统一按钮背景色 */
+        color: white; /* 统一按钮文字颜色 */
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s ease; /* 鼠标悬停时的过渡效果 */
+    }
+
+ .btn:hover {
+        background-color: #0056b3; /* 鼠标悬停时改变背景色 */
+    }
+
+ .btn.btn-secondary {
+        background-color: #ccc; /* 对返回按钮等次要按钮设置不同背景色 */
+        color: #333;
+    }
+
+ .btn.btn-secondary:hover {
+        background-color: #aaa; /* 鼠标悬停时改变背景色 */
+    }
+
+    /* 页面头部样式，复用部分属性并调整文字颜色等 */
+ .order-form-header {
+        background-color: #f3f5f8;
+        color: #333;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+ .order-form-header h4 {
+        margin: 0;
+    }
+
+    /* 文件上传按钮样式，适当调整使其与其他输入框样式协调 */
+ .file-input {
+        display: inline-block;
+        position: relative;
+        margin-bottom: 10px;
+    }
+ .file-input input[type="file"] {
+        position: absolute;
+        opacity: 0;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+ .file-input label {
+        display: inline-block;
+        height: 40px;
+        line-height: 40px;
+        padding: 0 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f5f5f5;
+        color: #333;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+ .file-input label:hover {
+        background-color: #e0e0e0;
+    }
+
+    /* 图片预览区域样式，设置大小、边框、外边距等 */
+ .image-preview {
+        width: 150px;
+        height: 150px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        cursor: pointer;  /* 添加鼠标指针样式为指针，提示可点击 */
+    }
+ .image-preview img {
+        max-width: 100%;
+        max-height: 100%;
+    }
+
+    /* 大图查看模态框样式 */
+ .image-modal {
+        display: none;  /* 默认隐藏模态框 */
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.9);  /* 半透明黑色背景 */
+    }
+ .image-modal-content {
+        margin: auto;
+        display: block;
+        width: 80%;
+        max-width: 800px;
+        max-height: 800px;
+    }
+ .close {
+        color: white;
+        position: absolute;
+        top: 15px;
+        right: 35px;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+ .close:hover,
+ .close:focus {
+        color: #ccc;
+        text-decoration: none;
+        cursor: pointer;
+    }
+</style>
+
+<div class="container custom-form-container">
+    <div class="order-form-header">
+        <h4 class="mb-4">更新订单</h4>
+        <a href="{% url 'order_list' %}" class="btn btn-secondary">返回</a>
+    </div>
+    <form method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label for="thug" class="form-label">打手：</label>
+            <input type="text" id="thug" name="thug" class="form-control" value="{{ order.thug }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="date" class="form-label">日期：</label>
+            <input type="date" id="date" name="date" class="form-control" value="{{ order.date|date:"Y-m-d" }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="single_number" class="form-label">单号：</label>
+            <input type="text" id="single_number" name="single_number" class="form-control" value="{{ order.single_number }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="boss" class="form-label">老板：</label>
+            <input type="text" id="boss" name="boss" class="form-control" value="{{ order.boss }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="unit_price" class="form-label">单价：</label>
+            <input type="number" id="unit_price" name="unit_price" class="form-control" step="0.01" value="{{ order.unit_price }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="original_price" class="form-label">原价：</label>
+            <input type="number" id="original_price" name="original_price" class="form-control" step="0.01" value="{{ order.original_price }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="is_received" class="form-label">是否收货：</label>
+            <select id="is_received" name="is_received" class="form-control" required>
+                <option value="是" {% if order.is_received == '是' %}selected{% endif %}>是</option>
+                <option value="否" {% if order.is_received == '否' %}selected{% endif %}>否</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="is_closed" class="form-label">是否结单：</label>
+            <select id="is_closed" name="is_closed" class="form-control" required>
+                <option value="是" {% if order.is_closed == '是' %}selected{% endif %}>是</option>
+                <option value="否" {% if order.is_closed == '否' %}selected{% endif %}>否</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="profit" class="form-label">利润：</label>
+            <input type="number" id="profit" name="profit" class="form-control" step="0.01" value="{{ order.profit }}" readonly>
+        </div>
+
+        <div class="mb-3">
+            <label for="manual_status" class="form-label">手动状态：</label>
+            <input type="text" id="manual_status" name="manual_status" class="form-control" value="{{ order.manual_status }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="audit_status" class="form-label">审核状态：</label>
+            <select id="audit_status" name="audit_status" class="form-control" required>
+                <option value="已审核" {% if order.audit_status == '已审核' %}selected{% endif %}>已审核</option>
+                <option value="未审核" {% if order.audit_status == '未审核' %}selected{% endif %}>未审核</option>
+            </select>
+        </div>
+
+        <!-- 图片相关部分 -->
+        <div class="mb-3 file-input">
+            <label for="order_image" class="form-label">订单图片：</label>
+            <input type="file" id="order_image" name="image" accept="image/*" onchange="preUploadImage(event)">
+        </div>
+        <div class="image-preview">
+            {% if order.image %}
+                <img src="{{ order.image.url }}" alt="订单图片" class="img-fluid" data-src="{{ order.image.url }}">
+            {% endif %}
+        </div>
+
+        <input type="hidden" id="temp_image_id" name="temp_image_id" value="">
+
+        <button type="submit" class="btn btn-primary">提交更新</button>
+    </form>
+
+    <!-- 大图查看模态框结构 -->
+    <div id="imageModal" class="image-modal">
+        <span class="close">&times;</span>
+        <img class="image-modal-content" id="modalImage">
+    </div>
+
+    <script>
+        // 获取原价、单价、利润对应的DOM元素
+        const originalPriceInput = document.querySelector('input[name="original_price"]');
+        const unitPriceInput = document.querySelector('input[name="unit_price"]');
+        const profitInput = document.querySelector('input[name="profit"]');
+    
+        // 定义计算利润的函数
+        function calculateProfit() {
+            const originalPrice = parseFloat(originalPriceInput.value);
+            const unitPrice = parseFloat(unitPriceInput.value);
+            const profit = originalPrice - unitPrice;
+            profitInput.value = profit.toFixed(2); // 保留两位小数展示利润，可根据需求调整
+        }
+    
+        // 为原价和单价输入框添加输入事件监听器，当输入框内容变化时调用计算利润的函数
+        originalPriceInput.addEventListener('input', calculateProfit);
+        unitPriceInput.addEventListener('input', calculateProfit);
+    
+        // 页面加载完成时，先计算一次利润，确保初始状态显示正确的值
+        window.addEventListener('load', calculateProfit);
+    
+        function preUploadImage(event) {
+            // 原有的图片预上传函数代码保持不变
+            const file = event.target.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('image', file);
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '{% url "pre_upload_image" %}', true);
+                const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            document.getElementById('temp_image_id').value = response.temp_image_id;
+                            previewImage(event);
+                        } else {
+                            alert(response.error_message);
+                        }
+                    } else {
+                        alert('图片预上传失败，请稍后重试');
+                    }
+                };
+                xhr.send(formData);
+            }
+        }
+    
+        function previewImage(event) {
+            // 原有的图片预览函数代码保持不变
+            const preview = document.querySelector('.image-preview');
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = function () {
+                    preview.innerHTML = `<img src="${reader.result}" alt="订单图片预览" data-src="${reader.result}">`;
+                };
+                if (file) {
+                    reader.readAsDataURL(file);
+                }
+            } else {
+                preview.innerHTML = '';
+            }
+        }
+    
+        function validateForm() {
+            var thug = document.querySelector('input[name="thug"]').value;
+            var date = document.querySelector('input[name="date"]').value;
+            var singleNumber = document.querySelector('input[name="single_number"]').value;
+            var boss = document.querySelector('input[name="boss"]').value;
+            var unitPrice = document.querySelector('input[name="unit_price"]').value;
+            var originalPrice = document.querySelector('input[name="original_price"]').value;
+            var isReceived = document.querySelector('select[name="is_received"]').value;
+            var isClosed = document.querySelector('select[name="is_closed"]').value;
+            // 利润字段由于是自动计算的，这里移除对其手动输入的验证
+            var manualStatus = document.querySelector('input[name="manual_status"]').value;
+            var auditStatus = document.querySelector('select[name="audit_status"]').value;
+            var tempImageId = document.getElementById('temp_image_id').value;
+            var previewImageElement = document.querySelector('.image-preview img');
+    
+            // 检查必填字段是否为空，如果有空字段则返回 false，并弹出相应提示
+            if (thug === "") {
+                alert('打手信息必填');
+                return false;
+            }
+            if (date === "") {
+                alert('日期必填');
+                return false;
+            }
+            if (singleNumber === "") {
+                alert('单号必填');
+                return false;
+            }
+            if (boss === "") {
+                alert('老板信息必填');
+                return false;
+            }
+            if (unitPrice === "") {
+                alert('单价必填');
+                return false;
+            }
+            if (originalPrice === "") {
+                alert('原价必填');
+                return false;
+            }
+            if (isReceived === "") {
+                alert('是否收货必填');
+                return false;
+            }
+            if (isClosed === "") {
+                alert('是否结单必填');
+                return false;
+            }
+            if (manualStatus === "") {
+                alert('手动状态必填');
+                return false;
+            }
+            if (auditStatus === "") {
+                alert('审核状态必填');
+                return false;
+            }
+            if (tempImageId === "" &&!previewImageElement) {
+                alert('请先上传订单图片');
+                return false;
+            }
+    
+            // 所有必填字段都有值的情况下，进行二次确认
+            return confirm('确认要提交更新订单信息吗？');
+        }
+    
+        function showImageModal() {
+            const modal = document.getElementById('imageModal');
+            const img = document.getElementById('modalImage');
+            const previewImg = document.querySelector('.image-preview img');
+            if (previewImg) {
+                img.src = previewImg.dataset.src;
+                modal.style.display = "block";
+            }
+        }
+    
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = "none";
+        }
+    
+        const preview = document.querySelector('.image-preview');
+        preview.addEventListener('click', showImageModal);
+        const closeBtn = document.querySelector('.close');
+        closeBtn.addEventListener('click', closeImageModal);
+        window.addEventListener('click', function (event) {
+            const modal = document.getElementById('imageModal');
+            if (event.target === modal) {
+                closeImageModal();
+            }
+        });
+    </script>
+</div>
+{% endblock %}

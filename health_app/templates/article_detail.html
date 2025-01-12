@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<body>
+    <h1>{{ article.title }}</h1>
+    <p>作者: {{ article.author }}</p>
+    <p>类别: {{ article.category }}</p>
+    <p>发布日期: {{ article.publish_date }}</p>
+    <p>{{ article.content }}</p>
+    {% endblock %}
