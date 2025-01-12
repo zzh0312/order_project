@@ -4,7 +4,7 @@
 {% block content %}
 <style>
     /* 整体表单容器样式，复用了参考样式中的一些属性，同时做了适当调整 */
-.custom-form-container {
+  .custom-form-container {
         padding: 15px;
         max-width: 800px;
         margin: 0 auto;
@@ -15,7 +15,7 @@
     }
 
     /* 表单输入框通用样式，统一高度、行高、内边距等 */
-.form-control {
+  .form-control {
         height: 40px;
         line-height: 40px;
         padding: 0 10px;
@@ -30,7 +30,7 @@
     }
 
     /* 按钮通用样式，设置高度、内边距、背景色、文字颜色等 */
-.btn {
+  .btn {
         height: 40px;
         line-height: 40px;
         padding: 0 20px;
@@ -43,23 +43,23 @@
         transition: background-color 0.3s ease; /* 鼠标悬停时的过渡效果 */
     }
 
-.btn:hover {
+  .btn:hover {
         background-color: #0056b3; /* 鼠标悬停时改变背景色 */
     }
 
-.btn.btn-secondary {
+  .btn.btn-secondary {
         background-color: #ccc; /* 对返回按钮等次要按钮设置不同背景色 */
         color: #333;
     }
 
-.btn.btn-secondary:hover {
+  .btn.btn-secondary:hover {
         background-color: #aaa; /* 鼠标悬停时改变背景色 */
     }
 
     /* 页面头部样式，复用部分属性并调整文字颜色等 */
-.order-form-header {
+  .order-form-header {
         background-color: #f3f5f8;
-        color: #333;
+        color: 333;
         padding: 15px;
         border-radius: 5px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -68,17 +68,18 @@
         align-items: center;
     }
 
-.order-form-header h4 {
+  .order-form-header h4 {
         margin: 0;
     }
 
     /* 文件上传按钮样式，适当调整使其与其他输入框样式协调 */
-.file-input {
+  .file-input {
         display: inline-block;
         position: relative;
         margin-bottom: 10px;
     }
-.file-input input[type="file"] {
+
+  .file-input input[type="file"] {
         position: absolute;
         opacity: 0;
         top: 0;
@@ -87,7 +88,8 @@
         height: 100%;
         cursor: pointer;
     }
-.file-input label {
+
+  .file-input label {
         display: inline-block;
         height: 40px;
         line-height: 40px;
@@ -99,23 +101,31 @@
         cursor: pointer;
         transition: background-color 0.3s ease;
     }
-.file-input label:hover {
+
+  .file-input label:hover {
         background-color: #e0e0e0;
     }
 
-    /* 图片预览区域样式，设置大小、边框、外边距等 */
-.image-preview {
+    /* 图片预览区域样式，设置为可容纳多张图片的布局，添加外边距等样式 */
+  .image-preview-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+  .image-preview {
         width: 150px;
         height: 150px;
         border: 1px solid #ccc;
         border-radius: 5px;
-        margin-top: 10px;
         display: flex;
         justify-content: center;
         align-items: center;
         overflow: hidden;
     }
-.image-preview img {
+
+  .image-preview img {
         max-width: 100%;
         max-height: 100%;
     }
@@ -165,33 +175,94 @@
         <input type="hidden" id="profit" name="profit" value="0">
         <input type="hidden" id="original_price" name="original_price" value="0">
         <input type="hidden" id="manual_status" name="manual_status" value="">
-        <!-- 图片上传及预览部分 -->
-        <div class="mb-3 file-input">
-            <label for="order_image" class="form-label">订单图片：</label>
-            <input type="file" id="order_image" name="image" accept="image/*" onchange="previewImage(event)" required>
-        </div>
-        <div class="image-preview"></div>
 
-        <button type="submit" class="btn btn-primary">提交</button>
+        <!-- 图片上传及预览部分，修改为支持多选文件，并调整相关样式类 -->
+        <div class="mb-3 file-input">
+            <label for="order_images" class="form-label">订单图片：</label>
+            <input type="file" id="order_images" name="image" accept="image/*" multiple onchange="preUploadImages(event)">
+        </div>
+        <div class="image-preview-container"></div>
+        <!-- 新增用于传递临时图片标识列表的隐藏域 -->
+        <input type="hidden" id="temp_image_ids_list" name="temp_image_ids" value="">
+        <!-- 原有的这个隐藏域修改为辅助元素，不再用于传递数据给后端 -->
+        <input type="hidden" id="temp_image_ids" name="temp_image_id" value="">
+
+        <button type=" submit" class="btn btn-primary">提交</button>
     </form>
 
     <script>
-        function previewImage(event) {
-            const preview = document.querySelector('.image-preview');
-            const file = event.target.files[0];
-            if (file) {
+        // 定义允许的图片格式数组
+        const allowedImageFormats = ['.jpg', '.jpeg', '.png', '.gif'];
+        // 定义允许的最大文件大小（单位为字节，这里假设为5MB，可根据实际需求调整）
+        const maxFileSize = 2 * 1024 * 1024;
+
+        function previewImages(event) {
+            const previewContainer = document.querySelector('.image-preview-container');
+            const files = event.target.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                // 验证图片格式
+                if (!allowedImageFormats.includes('.' + fileExtension)) {
+                    alert(`不支持的图片格式: ${file.name}，请上传 ${allowedImageFormats.join(', ')} 格式的图片`);
+                    continue;
+                }
+                // 验证文件大小
+                if (file.size > maxFileSize) {
+                    alert(`图片 ${file.name} 文件过大，请上传小于 ${maxFileSize / 1024 / 1024}MB 的图片`);
+                    continue;
+                }
                 const reader = new FileReader();
+                const imagePreviewDiv = document.createElement('div');
+                imagePreviewDiv.classList.add('image-preview');
                 reader.onloadend = function () {
-                    preview.innerHTML = `<img src="${reader.result}" alt="订单图片预览">`;
+                    imagePreviewDiv.innerHTML = `<img src="${reader.result}" alt="订单图片预览">`;
+                    previewContainer.appendChild(imagePreviewDiv);
                 };
                 if (file) {
                     reader.readAsDataURL(file);
                 }
-            } else {
-                preview.innerHTML = '';
             }
         }
-    
+        function preUploadImages(event) {
+            const files = event.target.files;
+            const formData = new FormData();
+            const tempImageIds = [];
+
+            // 遍历选择的文件，添加到FormData并记录文件名（这里假设以文件名作为临时标识，可根据后端实际情况调整）
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileName = file.name;
+                formData.append('image' + i, file);
+                tempImageIds.push(fileName);
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '{% url "pre_upload_image" %}', true);
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        const newTempImageIds = response.temp_image_ids;
+                        const tempImageIdsListElement = document.getElementById('temp_image_ids_list');
+                        // 先获取隐藏域中已有的临时图片标识列表（如果有的话），以逗号分隔的字符串解析为数组
+                        const existingTempImageIds = tempImageIdsListElement.value? tempImageIdsListElement.value.split(',') : [];
+                        // 将新的临时图片标识合并到现有列表中
+                        const combinedTempImageIds = existingTempImageIds.concat(newTempImageIds);
+                        // 将合并后的列表重新转换为逗号分隔的字符串，赋值给隐藏域的value属性
+                        tempImageIdsListElement.value = combinedTempImageIds.join(',');
+                        previewImages(event);
+                    } else {
+                        alert(response.error_message);
+                    }
+                } else {
+                    alert('图片预上传失败，请稍后重试');
+                }
+            };
+            xhr.send(formData);
+        }
         function confirmSubmit() {
             var result = confirm("你即将提交订单信息，此操作不可撤销，请仔细核对填写的内容，确认无误后点击确定进行提交，订单保存成功后可以继续添加新数据哦,是否继续？");
             if (result) {
@@ -204,15 +275,15 @@
             }
             return false;
         }
-    
+
         function validateForm() {
             var thug = document.querySelector('input[name="thug"]').value;
             var date = document.querySelector('input[name="date"]').value;
             var singleNumber = document.querySelector('input[name="single_number"]').value;
             var boss = document.querySelector('input[name="boss"]').value;
             var unitPrice = document.querySelector('input[name="unit_price"]').value;
-            var orderImage = document.querySelector('input[name="order_image"]').files[0];
-    
+            var orderImages = document.querySelector('input[name="order_images"]').files;
+
             if (thug === "") {
                 alert('打手信息必填');
                 return false;
@@ -233,14 +304,14 @@
                 alert('单价必填');
                 return false;
             }
-            if (!orderImage) {
-                alert('请选择订单图片');
+            if (orderImages.length === 0) {
+                alert('请至少选择一张订单图片');
                 return false;
             }
-    
+
             return true;
         }
-    
+
         function showSuccessModal() {
             // 创建模态框元素
             const modal = document.createElement('div');

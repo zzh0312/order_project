@@ -103,6 +103,12 @@
         background-color: #e0e0e0;
     }
 
+    .image-preview-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
     /* 图片预览区域样式，设置大小、边框、外边距等 */
  .image-preview {
         width: 150px;
@@ -229,93 +235,112 @@
             </select>
         </div>
 
-        <!-- 图片相关部分 -->
+        <!-- 图片相关部分，修改为支持多图片上传和预览 -->
         <div class="mb-3 file-input">
-            <label for="order_image" class="form-label">订单图片：</label>
-            <input type="file" id="order_image" name="image" accept="image/*" onchange="preUploadImage(event)">
+            <label for="order_images" class="form-label">订单图片：</label>
+            <input type="file" id="order_images" name="image" accept="image/*" multiple onchange="preUploadImages(event)">
         </div>
-        <div class="image-preview">
-            {% if order.image %}
-                <img src="{{ order.image.url }}" alt="订单图片" class="img-fluid" data-src="{{ order.image.url }}">
-            {% endif %}
+        <div class="image-preview-container">
+            {% for image_path in order.get_image_paths %}
+                <div class="image-preview">
+                    <img src="/{{ image_path }}" alt="订单图片" class="img-fluid" data-src="/{{ image_path }}">
+                </div>
+            {% endfor %}
         </div>
 
-        <input type="hidden" id="temp_image_id" name="temp_image_id" value="">
+        <!-- 新增用于传递临时图片标识列表的隐藏域 -->
+        <input type="hidden" id="temp_image_ids_list" name="temp_image_ids" value="">
+        <!-- 原有的这个隐藏域修改为辅助元素，不再用于传递数据给后端 -->
+        <input type="hidden" id="temp_image_ids" name="temp_image_id" value="">
+
 
         <button type="submit" class="btn btn-primary">提交更新</button>
     </form>
 
-    <!-- 大图查看模态框结构 -->
+    <!-- 大图查看模态框结构，保持不变 -->
     <div id="imageModal" class="image-modal">
         <span class="close">&times;</span>
         <img class="image-modal-content" id="modalImage">
     </div>
 
     <script>
-        // 获取原价、单价、利润对应的DOM元素
+        // 获取原价、单价、利润对应的DOM元素，保持不变
         const originalPriceInput = document.querySelector('input[name="original_price"]');
         const unitPriceInput = document.querySelector('input[name="unit_price"]');
         const profitInput = document.querySelector('input[name="profit"]');
-    
-        // 定义计算利润的函数
+
+        // 定义计算利润的函数，保持不变
         function calculateProfit() {
             const originalPrice = parseFloat(originalPriceInput.value);
             const unitPrice = parseFloat(unitPriceInput.value);
             const profit = originalPrice - unitPrice;
             profitInput.value = profit.toFixed(2); // 保留两位小数展示利润，可根据需求调整
         }
-    
-        // 为原价和单价输入框添加输入事件监听器，当输入框内容变化时调用计算利润的函数
+
+        // 为原价和单价输入框添加输入事件监听器，保持不变
         originalPriceInput.addEventListener('input', calculateProfit);
         unitPriceInput.addEventListener('input', calculateProfit);
-    
-        // 页面加载完成时，先计算一次利润，确保初始状态显示正确的值
+
+        // 页面加载完成时，先计算一次利润，保持不变
         window.addEventListener('load', calculateProfit);
-    
-        function preUploadImage(event) {
-            // 原有的图片预上传函数代码保持不变
-            const file = event.target.files[0];
-            if (file) {
-                const formData = new FormData();
-                formData.append('image', file);
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '{% url "pre_upload_image" %}', true);
-                const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-                xhr.setRequestHeader('X-CSRFToken', csrfToken);
-                xhr.onload = function () {
-                    if (xhr.status === 200) {
-                        const response = JSON.parse(xhr.responseText);
-                        if (response.success) {
-                            document.getElementById('temp_image_id').value = response.temp_image_id;
-                            previewImage(event);
-                        } else {
-                            alert(response.error_message);
-                        }
-                    } else {
-                        alert('图片预上传失败，请稍后重试');
-                    }
-                };
-                xhr.send(formData);
+        function preUploadImages(event) {
+            const files = event.target.files;
+            const formData = new FormData();
+            const tempImageIds = [];
+
+            // 遍历选择的文件，添加到FormData并记录文件名（这里假设以文件名作为临时标识，可根据后端实际情况调整）
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileName = file.name;
+                formData.append('image' + i, file);
+                tempImageIds.push(fileName);
             }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '{% url "pre_upload_image" %}', true);
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        const newTempImageIds = response.temp_image_ids;
+                        const tempImageIdsListElement = document.getElementById('temp_image_ids_list');
+                        // 先获取隐藏域中已有的临时图片标识列表（如果有的话），以逗号分隔的字符串解析为数组
+                        const existingTempImageIds = tempImageIdsListElement.value? tempImageIdsListElement.value.split(',') : [];
+                        // 将新的临时图片标识合并到现有列表中
+                        const combinedTempImageIds = existingTempImageIds.concat(newTempImageIds);
+                        // 将合并后的列表重新转换为逗号分隔的字符串，赋值给隐藏域的value属性
+                        tempImageIdsListElement.value = combinedTempImageIds.join(',');
+                        previewImages(event);
+                    } else {
+                        alert(response.error_message);
+                    }
+                } else {
+                    alert('图片预上传失败，请稍后重试');
+                }
+            };
+            xhr.send(formData);
         }
-    
-        function previewImage(event) {
-            // 原有的图片预览函数代码保持不变
-            const preview = document.querySelector('.image-preview');
-            const file = event.target.files[0];
-            if (file) {
+        function previewImages(event) {
+            const previewContainer = document.querySelector('.image-preview-container');
+            // previewContainer.innerHTML = '';
+            const files = event.target.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
                 const reader = new FileReader();
+                const imagePreviewDiv = document.createElement('div');
+                imagePreviewDiv.classList.add('image-preview');
                 reader.onloadend = function () {
-                    preview.innerHTML = `<img src="${reader.result}" alt="订单图片预览" data-src="${reader.result}">`;
+                    imagePreviewDiv.innerHTML = `<img src="${reader.result}" alt="订单图片预览" data-src="${reader.result}">`;
+                    previewContainer.appendChild(imagePreviewDiv);
                 };
                 if (file) {
                     reader.readAsDataURL(file);
                 }
-            } else {
-                preview.innerHTML = '';
             }
         }
-    
+
         function validateForm() {
             var thug = document.querySelector('input[name="thug"]').value;
             var date = document.querySelector('input[name="date"]').value;
@@ -328,9 +353,9 @@
             // 利润字段由于是自动计算的，这里移除对其手动输入的验证
             var manualStatus = document.querySelector('input[name="manual_status"]').value;
             var auditStatus = document.querySelector('select[name="audit_status"]').value;
-            var tempImageId = document.getElementById('temp_image_id').value;
-            var previewImageElement = document.querySelector('.image-preview img');
-    
+            var tempImageIds = document.getElementById('temp_image_ids').value.split(',');
+            var previewImageElements = document.querySelectorAll('.image-preview img');
+
             // 检查必填字段是否为空，如果有空字段则返回 false，并弹出相应提示
             if (thug === "") {
                 alert('打手信息必填');
@@ -372,15 +397,15 @@
                 alert('审核状态必填');
                 return false;
             }
-            if (tempImageId === "" &&!previewImageElement) {
-                alert('请先上传订单图片');
+            if (tempImageIds.length === 0 && previewImageElements.length === 0) {
+                alert('请至少上传一张订单图片');
                 return false;
             }
-    
+
             // 所有必填字段都有值的情况下，进行二次确认
             return confirm('确认要提交更新订单信息吗？');
         }
-    
+
         function showImageModal() {
             const modal = document.getElementById('imageModal');
             const img = document.getElementById('modalImage');
@@ -390,14 +415,21 @@
                 modal.style.display = "block";
             }
         }
-    
+
         function closeImageModal() {
             const modal = document.getElementById('imageModal');
             modal.style.display = "none";
         }
-    
-        const preview = document.querySelector('.image-preview');
-        preview.addEventListener('click', showImageModal);
+
+        const previewContainer = document.querySelector('.image-preview-container');
+        previewContainer.addEventListener('click', function (event) {
+            if (event.target.tagName === 'IMG') {
+                const img = document.getElementById('modalImage');
+                img.src = event.target.dataset.src;
+                const modal = document.getElementById('imageModal');
+                modal.style.display = "block";
+            }
+        });
         const closeBtn = document.querySelector('.close');
         closeBtn.addEventListener('click', closeImageModal);
         window.addEventListener('click', function (event) {

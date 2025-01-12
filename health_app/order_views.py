@@ -12,6 +12,7 @@ import os
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 import uuid
+from django.views.decorators.csrf import csrf_exempt
 
 
 def is_superuser(user):
@@ -58,30 +59,42 @@ def order_detail(request, order_id):
     }
     return render(request, 'order_detail.html', context)
 
-
+@csrf_exempt
 # 图片预上传视图函数
 def pre_upload_image(request):
     if request.method == 'POST':
-        # 获取上传的图片文件
-        image = request.FILES.get('image')
-        if image:
-            # 生成一个唯一的临时文件名（这里简单使用UUID，你也可以根据实际需求调整命名策略）
-            temp_image_name = str(uuid.uuid4()) + os.path.splitext(image.name)[1]
-            # 构建临时图片保存的路径，假设你的媒体文件根目录是MEDIA_ROOT，你可以根据实际配置调整
-            temp_image_path = os.path.join('media', 'temp_images', temp_image_name)
+        # 获取上传的所有图片文件（通过文件上传字段名类似 'image0', 'image1' 等，假设前端按此规则传递）
+        images = {}
+        for key in request.FILES:
+            if key.startswith('image'):
+                images[key] = request.FILES[key]
+
+        if images:
+            temp_image_ids = []
             try:
-                # 确保临时图片保存的目录存在，如果不存在则创建
-                os.makedirs(os.path.dirname(temp_image_path), exist_ok=True)
-                with open(temp_image_path, 'wb') as destination:
-                    for chunk in image.chunks():
-                        destination.write(chunk)
-                # 返回成功的响应，包含临时图片的标识（这里以临时文件名作为标识示例）
+                # 循环处理每个上传的图片文件
+                for image_key, image in images.items():
+                    # 生成一个唯一的临时文件名（这里简单使用UUID，你也可以根据实际需求调整命名策略）
+                    temp_image_name = str(uuid.uuid4()) + os.path.splitext(image.name)[1]
+                    # 构建临时图片保存的路径，假设你的媒体文件根目录是MEDIA_ROOT，你可以根据实际配置调整
+                    temp_image_path = os.path.join('media', 'temp_images', temp_image_name)
+                    # 确保临时图片保存的目录存在，如果不存在则创建
+                    os.makedirs(os.path.dirname(temp_image_path), exist_ok=True)
+                    with open(temp_image_path, 'wb') as destination:
+                        for chunk in image.chunks():
+                            destination.write(chunk)
+                    temp_image_ids.append(temp_image_name)
+                # 返回成功的响应，包含所有临时图片的标识（这里以临时文件名作为标识示例）
                 return JsonResponse({
                    'success': True,
-                    'temp_image_id': temp_image_name
+                    'temp_image_ids': temp_image_ids
                 })
             except Exception as e:
-                # 如果保存过程出现错误，返回错误响应
+                # 如果保存过程出现错误，返回错误响应，尝试删除已部分保存的临时图片
+                for temp_image_id in temp_image_ids:
+                    temp_image_path = os.path.join('media', 'temp_images', temp_image_id)
+                    if os.path.exists(temp_image_path):
+                        os.remove(temp_image_path)
                 return JsonResponse({
                    'success': False,
                     'error_message': f'图片保存失败: {str(e)}'
@@ -91,7 +104,6 @@ def pre_upload_image(request):
             'error_message': '没有接收到有效的图片文件'
         })
     return HttpResponse(status=405)  # 如果不是POST请求，返回方法不允许的状态码
-
 
 # 创建订单视图，需要用户登录
 @login_required
@@ -117,6 +129,8 @@ def create_order(request):
             if file_extension not in allowed_extensions:
                 messages.error(request, '请上传正确格式的图片（支持jpg、jpeg、png、gif）')
                 return redirect('create_order')
+            
+        
         original_price = request.POST.get('original_price')
         is_received = request.POST.get('is_received')
         is_closed = request.POST.get('is_closed')
@@ -133,7 +147,6 @@ def create_order(request):
             single_number=single_number,
             boss=boss,
             unit_price=unit_price,
-            image=image,
             original_price=original_price,
             is_received=is_received,
             is_closed=is_closed,
@@ -141,6 +154,23 @@ def create_order(request):
             manual_status=manual_status,
             audit_status=audit_status,
         )
+        # 获取前端传来的临时图片标识列表（假设前端以列表形式传递多个临时图片标识，比如['temp_image_id_1', 'temp_image_id_2',...]）
+        temp_image_ids_str = request.POST.get('temp_image_ids')
+        print("临时图片标识列表:", temp_image_ids_str)  # 直接使用print函数打印
+        if temp_image_ids_str:
+            temp_image_ids = temp_image_ids_str.split(',')
+            for temp_image_id in temp_image_ids:
+                # 构建临时图片在服务器上的完整路径，同样基于前面假设的媒体文件相关配置
+                temp_image_path = os.path.join('media', 'temp_images', temp_image_id)
+                if os.path.exists(temp_image_path):
+                    # 如果临时图片存在，将其移动到正式的订单图片保存位置（这里假设订单图片保存路径在media/orders下，你可按需调整）
+                    new_image_path = os.path.join('media', 'orders', temp_image_id)
+                    os.rename(temp_image_path, new_image_path)
+                    # 使用 Order 模型中定义的 add_image_path 方法添加图片路径
+                    order.add_image_path(new_image_path)
+                else:
+                    messages.error(request, f'预上传的图片 {temp_image_id} 不存在，请重新上传')
+                    return redirect('create_order')
         order.save()
         messages.success(request, '订单创建成功')
         return redirect('create_order')
@@ -153,20 +183,23 @@ def create_order(request):
 def update_order(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     if request.method == 'POST':
-        # 获取前端传来的临时图片标识
-        temp_image_id = request.POST.get('temp_image_id')
-        if temp_image_id:
-            # 构建临时图片在服务器上的完整路径，同样基于前面假设的媒体文件相关配置
-            temp_image_path = os.path.join('media', 'temp_images', temp_image_id)
-            if os.path.exists(temp_image_path):
-                # 如果临时图片存在，将其移动到正式的订单图片保存位置（这里假设订单图片保存路径在media/orders下，你可按需调整）
-                new_image_path = os.path.join('media', 'orders', temp_image_id)
-                os.rename(temp_image_path, new_image_path)
-                # 将订单对象的image字段设置为新的图片路径（这里只是简单示例，实际可能需要根据模型的具体设置调整，比如使用ImageField的相关方法）
-                order.image = os.path.join('orders', temp_image_id)
-            else:
-                messages.error(request, '预上传的图片不存在，请重新上传')
-                return redirect('update_order', order_id=order_id)
+        # 获取前端传来的临时图片标识列表（假设前端以列表形式传递多个临时图片标识，比如['temp_image_id_1', 'temp_image_id_2',...]）
+        temp_image_ids_str = request.POST.get('temp_image_ids')
+        print("临时图片标识列表:", temp_image_ids_str)  # 直接使用print函数打印
+        if temp_image_ids_str:
+            temp_image_ids = temp_image_ids_str.split(',')
+            for temp_image_id in temp_image_ids:
+                # 构建临时图片在服务器上的完整路径，同样基于前面假设的媒体文件相关配置
+                temp_image_path = os.path.join('media', 'temp_images', temp_image_id)
+                if os.path.exists(temp_image_path):
+                    # 如果临时图片存在，将其移动到正式的订单图片保存位置（这里假设订单图片保存路径在media/orders下，你可按需调整）
+                    new_image_path = os.path.join('media', 'orders', temp_image_id)
+                    os.rename(temp_image_path, new_image_path)
+                    # 使用 Order 模型中定义的 add_image_path 方法添加图片路径
+                    order.add_image_path(new_image_path)
+                else:
+                    messages.error(request, f'预上传的图片 {temp_image_id} 不存在，请重新上传')
+                    return redirect('update_order', order_id=order_id)
         # 其他订单字段更新逻辑保持不变，以下是省略的部分代码示例
         order.thug = request.POST.get('thug')
         order.date = request.POST.get('date')
@@ -187,7 +220,6 @@ def update_order(request, order_id):
         'order': order
     }
     return render(request, 'update_order.html', context)
-
 
 # 删除订单视图，需要有相应权限（此处假设权限名为 'delete_order'，你需根据实际情况配置）
 # @permission_required('health_app.delete_order')

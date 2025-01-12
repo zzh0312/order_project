@@ -4,7 +4,6 @@ import random
 import string
 from django.utils import timezone
 
-
 class Order(models.Model):
     """
     订单模型类，用于记录订单相关的核心信息
@@ -44,10 +43,11 @@ class Order(models.Model):
     """
     “单价”字段，可用于记录商品或服务的单价情况，设为可为空，以适应不同订单的计价模式。
     """
-    image = models.ImageField(upload_to='orders/', blank=True, null=True)
+    # 存储图片路径的字段，使用 TextField，以特定格式存储多个图片路径，比如以逗号分隔
+    image_paths = models.TextField(blank=True, null=True)
     """
-    “图片”字段，可用于上传和存储与订单相关的图片文件，如商品图片、服务凭证图片等。
-    upload_to='orders/' 表示图片将上传到项目设置的媒体文件存储路径下的 'orders/' 子目录中，设为可为空，因为不是所有订单都一定有图片。
+    “图片”字段，将多个图片的路径以文本形式存储在这里，通过自定义方法来解析和操作这些路径，
+    设为可为空，因为不是所有订单都一定有图片。
     """
     # 新增“原价”字段，用于记录商品或服务原本的价格，使用DecimalField精确存储小数金额
     original_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -98,9 +98,7 @@ class Order(models.Model):
         """
         生成订单编号的方法，根据当前日期和随机字符串生成唯一的订单编号
         """
-        # 获取当前日期，格式化为 'YYYYMMDD'
         current_date = timezone.now().date().strftime('%Y%m%d')
-        # 生成一个随机的字符串部分，这里示例生成6位包含字母和数字的随机字符串
         random_part = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
         return f"{current_date}_{random_part}"
 
@@ -111,6 +109,32 @@ class Order(models.Model):
         if not self.order_number:
             self.order_number = self.generate_order_number()
         super().save(*args, **kwargs)
+
+    def add_image_path(self, path):
+        """
+        添加图片路径到 image_paths 字段中，如果字段已有内容则以特定格式（比如逗号分隔）追加
+        """
+        if self.image_paths:
+            self.image_paths += f",{path}"
+        else:
+            self.image_paths = path
+
+    def get_image_paths(self):
+        """
+        获取所有图片路径，以列表形式返回，会对存储在 image_paths 字段中的内容进行解析
+        """
+        if self.image_paths:
+            return self.image_paths.split(',')
+        return []
+
+    def remove_image_path(self, path):
+        """
+        从 image_paths 字段中移除指定的图片路径，如果存在的话
+        """
+        paths = self.get_image_paths()
+        if path in paths:
+            paths.remove(path)
+            self.image_paths = ','.join(paths)
 
     class Meta:
         verbose_name = '订单'
